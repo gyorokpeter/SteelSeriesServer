@@ -9,12 +9,14 @@ using System.Security.Principal;
 using System.Text;
 using System.Threading;
 using Newtonsoft.Json.Linq;
+using OpenRGB.NET;
 
 namespace SteelSeriesServer
 {
 
     class Program
     {
+        static Sender sender;
         struct GameMetadata
         {
             public String game;
@@ -114,112 +116,131 @@ namespace SteelSeriesServer
                 { "seven",Zone.Seven },
                 { "eight",Zone.Eight },
             };
+            const int keyboardWidth = Sender.keyboardWidth;
             public static readonly Dictionary<Zone, String> zonesR = zones.ToDictionary(x => x.Value, x => x.Key);
             public static readonly Dictionary<int, int> hid2Bitmap = new Dictionary<int, int> {
-                { 4, 64 },    //a
-                { 5, 90 },    //b
-                { 6, 88 },    //c
-                { 7, 66 },    //d
-                { 8, 45 },    //e
-                { 9, 67 },    //f
-                { 10, 68 },   //g
-                { 11, 69 },   //h
-                { 12, 50 },   //i
-                { 13, 70 },   //j
-                { 14, 71 },   //k
-                { 15, 72 },   //l
-                { 16, 92 },   //m
-                { 17, 91 },   //n
-                { 18, 51 },   //o
-                { 19, 52 },   //p
-                { 20, 43 },   //q
-                { 21, 46 },   //r
-                { 22, 65 },   //s
-                { 23, 47 },   //t
-                { 24, 49 },   //u
-                { 25, 89 },   //v
-                { 26, 44 },   //w
-                { 27, 87 },   //x
-                { 28, 48 },   //y
-                { 29, 86 },   //z
-                { 30, 22 },   //1
-                { 31, 23 },   //2
-                { 32, 24 },   //3
-                { 33, 25 },   //4
-                { 34, 26 },   //5
-                { 35, 27 },   //6
-                { 36, 28 },   //7
-                { 37, 29 },   //8
-                { 38, 30 },   //9
-                { 39, 31 },   //0
-                { 40, 76 },   //Enter
-                { 41, 0 },    //Esc
-                { 42, 34 },   //Backspace
-                { 43, 42 },   //Tab
-                { 44, 110 },  //Space
-                { 45, 32 },   //-/_
-                { 46, 33 },   //+/=
-                { 47, 53 },   //[/{
-                { 48, 54 },   //]/}
-                { 49, 75 },   //Backslash
-                { 50, 85 },   //|/\
-                { 51, 73 },   //;/:
-                { 52, 74 },   //'/"
-                { 53, 21 },   //`/~
-                { 55, 94 },   //./>
-                { 56, 95 },   //?//
-                { 57, 63 },   //Caps Lock
-                { 58, 1 },    //F1
-                { 59, 2 },    //F2
-                { 60, 3 },    //F3
-                { 61, 4 },    //F4
-                { 62, 5 },    //F5
-                { 63, 6 },    //F6
-                { 64, 7 },    //F7
-                { 65, 8 },    //F8
-                { 66, 9 },    //F9
-                { 67, 10 },   //F10
-                { 68, 11 },   //F11
-                { 69, 12 },   //F12
-                { 70, 13 },   //PrtScr
-                { 71, 14 },   //Scroll Lock
-                { 72, 15 },   //Pause
-                { 73, 35 },   //Insert
-                { 74, 36 },   //Home
-                { 75, 37 },   //PgUp
-                { 76, 56 },   //Delete
-                { 77, 57 },   //End
-                { 78, 58 },   //PgDn
-                { 79, 122 },  //Right Arrow
-                { 80, 120 },  //Left Arrow
-                { 81, 121 },  //Down Arrow
-                { 82, 99 },   //Up Arrow
-                { 83, 38 },   //Num Lock
-                { 84, 39 },   //Numpad /
-                { 85, 40 },   //Numpad *
-                { 86, 41 },   //Numpad -
-                { 87, 62 },   //Numpad +
-                { 88, 104 },  //Numpad Enter
-                { 89, 101 },  //Numpad 1/End
-                { 90, 102 },  //Numpad 2/Down
-                { 91, 103 },  //Numpad 3/PgDn
-                { 92, 80 },   //Numpad 4/Left
-                { 93, 81 },   //Numpad 5
-                { 94, 82 },   //Numpad 6/Right
-                { 95, 59 },   //Numpad 7/Home
-                { 96, 60 },   //Numpad 8/Up
-                { 97, 61 },   //Numpad 9/PgUp
-                { 98, 123 },  //Numpad 0/Ins
-                { 99, 124 },  //Numpad ./Del
-                { 224, 105 }, //Left Ctrl
-                { 225, 84 },  //Left Shift
-                { 226, 107 }, //Left Alt
-                { 227, 106 }, //Left GUI
-                { 228, 119 }, //Right Ctrl
-                { 229, 97 },  //Right Shift
-                { 230, 116 }, //Right Alt
-                { 231, 117 }, //Right GUI
-                { 240, 118 }, //Right Menu???
+                { 4,   keyboardWidth*3+1  },    //a
+                { 5,   keyboardWidth*4+6  },    //b
+                { 6,   keyboardWidth*4+4  },    //c
+                { 7,   keyboardWidth*3+3  },    //d
+                { 8,   keyboardWidth*2+3  },    //e
+                { 9,   keyboardWidth*3+4  },    //f
+                { 10,  keyboardWidth*3+5  },    //g
+                { 11,  keyboardWidth*3+6  },    //h
+                { 12,  keyboardWidth*2+8  },    //i
+                { 13,  keyboardWidth*3+7  },    //j
+                { 14,  keyboardWidth*3+8  },    //k
+                { 15,  keyboardWidth*3+9  },    //l
+                { 16,  keyboardWidth*4+8  },    //m
+                { 17,  keyboardWidth*4+7  },    //n
+                { 18,  keyboardWidth*2+9  },    //o
+                { 19,  keyboardWidth*2+10 },    //p
+                { 20,  keyboardWidth*2+1  },    //q
+                { 21,  keyboardWidth*2+4  },    //r
+                { 22,  keyboardWidth*3+2  },    //s
+                { 23,  keyboardWidth*2+5  },    //t
+                { 24,  keyboardWidth*2+7  },    //u
+                { 25,  keyboardWidth*4+5  },    //v
+                { 26,  keyboardWidth*2+2  },    //w
+                { 27,  keyboardWidth*4+3  },    //x
+                { 28,  keyboardWidth*2+6  },    //y
+                { 29,  keyboardWidth*4+2  },    //z
+                { 30,  keyboardWidth*1+1  },    //1
+                { 31,  keyboardWidth*1+2  },    //2
+                { 32,  keyboardWidth*1+3  },    //3
+                { 33,  keyboardWidth*1+4  },    //4
+                { 34,  keyboardWidth*1+5  },    //5
+                { 35,  keyboardWidth*1+6  },    //6
+                { 36,  keyboardWidth*1+7  },    //7
+                { 37,  keyboardWidth*1+8  },    //8
+                { 38,  keyboardWidth*1+9  },    //9
+                { 39,  keyboardWidth*1+10 },    //0
+                { 40,  keyboardWidth*3+13 },    //Enter
+                { 41,  keyboardWidth*0+0  },    //Esc
+                { 42,  keyboardWidth*1+13 },    //Backspace
+                { 43,  keyboardWidth*2+0  },    //Tab
+                { 44,  keyboardWidth*5+5  },    //Space
+                { 45,  keyboardWidth*1+11 },    //-/_
+                { 46,  keyboardWidth*1+12 },    //+/=
+                { 47,  keyboardWidth*2+11 },    //[/{
+                { 48,  keyboardWidth*2+12 },    //]/}
+                { 49,  keyboardWidth*3+12 },    //US Backslash, UK ~/#
+                { 50,  keyboardWidth*4+1  },    //UK Backslash/|
+                { 51,  keyboardWidth*3+10 },    //;/:
+                { 52,  keyboardWidth*3+11 },    //'/"
+                { 53,  keyboardWidth*1+0  },    //`/~
+                { 54,  keyboardWidth*4+9  },    //,/<
+                { 55,  keyboardWidth*4+10 },    //./>
+                { 56,  keyboardWidth*4+11 },    //?//
+                { 57,  keyboardWidth*3+0  },    //Caps Lock
+                { 58,  keyboardWidth*0+1  },    //F1
+                { 59,  keyboardWidth*0+2  },    //F2
+                { 60,  keyboardWidth*0+3  },    //F3
+                { 61,  keyboardWidth*0+4  },    //F4
+                { 62,  keyboardWidth*0+5  },    //F5
+                { 63,  keyboardWidth*0+6  },    //F6
+                { 64,  keyboardWidth*0+7  },    //F7
+                { 65,  keyboardWidth*0+8  },    //F8
+                { 66,  keyboardWidth*0+9  },    //F9
+                { 67,  keyboardWidth*0+10 },    //F10
+                { 68,  keyboardWidth*0+11 },    //F11
+                { 69,  keyboardWidth*0+12 },    //F12
+                { 70,  keyboardWidth*0+13 },    //PrtScr
+                { 71,  keyboardWidth*0+14 },    //Scroll Lock
+                { 72,  keyboardWidth*0+15 },    //Pause
+                { 73,  keyboardWidth*1+14 },    //Insert
+                { 74,  keyboardWidth*1+15 },    //Home
+                { 75,  keyboardWidth*1+16 },    //PgUp
+                { 76,  keyboardWidth*2+14 },    //Delete
+                { 77,  keyboardWidth*2+15 },    //End
+                { 78,  keyboardWidth*2+16 },    //PgDn
+                { 79,  keyboardWidth*5+17 },    //Right Arrow
+                { 80,  keyboardWidth*5+15 },    //Left Arrow
+                { 81,  keyboardWidth*5+16 },    //Down Arrow
+                { 82,  keyboardWidth*4+15 },    //Up Arrow
+                { 83,  keyboardWidth*1+17 },    //Num Lock
+                { 84,  keyboardWidth*1+18 },    //Numpad /
+                { 85,  keyboardWidth*1+19 },    //Numpad *
+                { 86,  keyboardWidth*1+20 },    //Numpad -
+                { 87,  keyboardWidth*2+20 },    //Numpad +
+                { 88,  keyboardWidth*4+20 },    //Numpad Enter
+                { 89,  keyboardWidth*4+17 },    //Numpad 1/End
+                { 90,  keyboardWidth*4+18 },    //Numpad 2/Down
+                { 91,  keyboardWidth*4+19 },    //Numpad 3/PgDn
+                { 92,  keyboardWidth*3+17 },    //Numpad 4/Left
+                { 93,  keyboardWidth*3+18 },    //Numpad 5
+                { 94,  keyboardWidth*3+19 },    //Numpad 6/Right
+                { 95,  keyboardWidth*2+17 },    //Numpad 7/Home
+                { 96,  keyboardWidth*2+18 },    //Numpad 8/Up
+                { 97,  keyboardWidth*2+19 },    //Numpad 9/PgUp
+                { 98,  keyboardWidth*5+18 },    //Numpad 0/Ins
+                { 99,  keyboardWidth*5+19 },    //Numpad ./Del
+                { 224, keyboardWidth*5+0  },    //Left Ctrl
+                { 225, keyboardWidth*4+0  },    //Left Shift
+                { 226, keyboardWidth*5+2  },    //Left Alt
+                { 227, keyboardWidth*5+1  },    //Left GUI
+                { 228, keyboardWidth*5+14 },    //Right Ctrl
+                { 229, keyboardWidth*4+13 },    //Right Shift
+                { 230, keyboardWidth*5+11 },    //Right Alt
+                { 231, keyboardWidth*5+12 },    //Right GUI
+                { 240, keyboardWidth*5+13 },    //Menu???
+                //unmapped:
+                //keyboardWidth*2+13
+                //keyboardWidth*3+14
+                //keyboardWidth*3+15
+                //keyboardWidth*3+16
+                //keyboardWidth*3+20
+                //keyboardWidth*4+12
+                //keyboardWidth*4+14
+                //keyboardWidth*4+16
+                //keyboardWidth*5+3
+                //keyboardWidth*5+4
+                //keyboardWidth*5+6
+                //keyboardWidth*5+7
+                //keyboardWidth*5+8
+                //keyboardWidth*5+9
+                //keyboardWidth*5+10
+                //keyboardWidth*5+20
             };
             public static readonly Dictionary<Zone, int[]> zoneKeys = new Dictionary<Zone, int[]>
             {
@@ -244,7 +265,7 @@ namespace SteelSeriesServer
                 return result;
             }
 
-            private int EvalPct(int i, int max, int val, int red, int green, int blue)
+            private int EvalPct(int i, int max, int val, ref int red, ref int green, ref int blue)
             {
                 double lowerBound = 100 * ((double)i) / max;
                 double upperBound = 100 * ((double)(i+1)) / max;
@@ -277,7 +298,6 @@ namespace SteelSeriesServer
                     green = val > 0 ? color.green : 0;
                     blue = val > 0 ? color.blue : 0;
                 }
-                int colorInt = (red << 16) | (green << 8) | blue;
                 int[] keys = GetAffectedKeys();
                 for (var i = 0; i < keys.Length; ++i)
                 {
@@ -290,17 +310,17 @@ namespace SteelSeriesServer
                     }
                     else if (mode == Mode.Count)
                     {
-                        if (i >= val) colorInt = 0;
+                        if (i >= val) red = green = blue = 0;
                     } else if (mode == Mode.Percent)
                     {
-                        colorInt = EvalPct(i, keys.Length, val, red, green, blue);
+                        EvalPct(i, keys.Length, val, ref red, ref green, ref blue);
                     } else
                     {
                         throw new Exception("unknown mode");
                     }
-                    pipeMsg["bitmap"][keys[i]] = colorInt;
+                    sender.SetColor(keys[i], (byte)red, (byte)green, (byte)blue);
                 }
-                SendMessage();
+                sender.ApplyChanges();
             }
 
             private int[] GetAffectedKeys()
@@ -321,10 +341,9 @@ namespace SteelSeriesServer
                     for (int i = 0; i < 126; ++i)
                     {
                         var color = (JArray)bmp[i + i / 21];
-                        int colorInt = ((int)color[0] << 16) | ((int)color[1] << 8) | ((int)color[2]);
-                        pipeMsg["bitmap"][i] = colorInt;
+                        sender.SetColor(i, (byte)color[0], (byte)color[1], (byte)color[2]);
                     }
-                    SendMessage();
+                    sender.ApplyChanges();
                 }
                 else if (mode == Mode.PartialBitmap)
                 {
@@ -335,11 +354,10 @@ namespace SteelSeriesServer
                         if (mask[i] == 0)
                         {
                             var color = (JArray)bmp[i + i / 21];
-                            int colorInt = ((int)color[0] << 16) | ((int)color[1] << 8) | ((int)color[2]);
-                            pipeMsg["bitmap"][i] = colorInt;
+                            sender.SetColor(i, (byte)color[0], (byte)color[1], (byte)color[2]);
                         }
                     }
-                    SendMessage();
+                    sender.ApplyChanges();
                 }
                 else
                 {
@@ -418,18 +436,6 @@ namespace SteelSeriesServer
         }
 
         static Dictionary<String, Game> games;
-        static JObject pipeMsg;
-        static NamedPipeClientStream pipeClient;
-
-        static void SendMessage()
-        {
-            var str = pipeMsg.ToString(Newtonsoft.Json.Formatting.None) + "\n";
-            var data = Encoding.ASCII.GetBytes(str);
-            Console.WriteLine(str);
-            pipeClient.Write(data, 0, data.Length);
-            pipeClient.Flush();
-        }
-
         class NetworkReader
         {
             bool closed = false;
@@ -513,52 +519,51 @@ namespace SteelSeriesServer
             }
         }
 
-        static void Main(string[] _)
+        static int Main(string[] args)
         {
+
+            int senderType = -1;
+            for (int i=0; i<args.Length; ++i)
+            {
+                if (args[i] == "-sender")
+                {
+                    ++i;
+                    if (i >= args.Length)
+                    {
+                        Console.Error.WriteLine("no value for -sender parameter");
+                        return 1;
+                    }
+                    if (args[i] == "aurora")
+                    {
+                        senderType = 1;
+                    } else if (args[i] == "openrgb")
+                    {
+                        senderType = 2;
+                    } else
+                    {
+                        Console.Error.WriteLine("unknown value for -sender parameter: " + args[i]);
+                        return 1;
+                    }
+                }
+            }
+            if (senderType == -1)
+            {
+                Console.Write("Choose sender type (1=Aurora, 2=OpenRGB): ");
+                senderType = int.Parse(Console.ReadLine());
+                if (senderType < 0 || senderType > 2)
+                {
+                    Console.Error.WriteLine("invalid sender type");
+                    return 1;
+                }
+            }
+            if (senderType == 1)
+            {
+                sender = new AuroraSender();
+            } else {
+                sender = new OpenRGBSender();
+            }
+
             games = new Dictionary<String, Game>();
-            var provider = new JObject
-            {
-                ["name"] = "SteelSeriesServer.exe",
-                ["appid"] = 0
-            };
-            var cmdData = new JObject
-            {
-                ["custom_mode"] = 0,
-                ["effect_type"] = "CHROMA_CUSTOM"
-            };
-            var extraKeys = new JObject
-            {
-                ["logo"] = 0,
-                ["G1"] = 0,
-                ["G2"] = 0,
-                ["G3"] = 0,
-                ["G4"] = 0,
-                ["G5"] = 0,
-                ["peripheral"] = 0,
-                ["mousepad0"] = 0,
-                ["mousepad1"] = 0,
-                ["mousepad2"] = 0,
-                ["mousepad3"] = 0,
-                ["mousepad4"] = 0,
-                ["mousepad5"] = 0,
-                ["mousepad6"] = 0,
-                ["mousepad7"] = 0,
-                ["mousepad8"] = 0,
-                ["mousepad9"] = 0,
-                ["mousepad10"] = 0,
-                ["mousepad11"] = 0,
-                ["mousepad12"] = 0,
-                ["mousepad13"] = 0,
-                ["mousepad14"] = 0
-            };
-            pipeMsg = new JObject
-            {
-                ["provider"] = provider,
-                ["command"] = "CreateKeyboardEffect",
-                ["command_data"] = cmdData,
-                ["bitmap"] = JArray.FromObject(new int[126]),
-                ["extra_keys"] = extraKeys,
-            };
 
             var listener = new TcpListener(IPAddress.Any, 0);
             listener.Start();
@@ -572,17 +577,12 @@ namespace SteelSeriesServer
                 Console.WriteLine("Waiting for client\n");
                 TcpClient client = listener.AcceptTcpClient();
                 Console.WriteLine("Client connected\n");
-                pipeClient =
-                        new NamedPipeClientStream(".", "Aurora\\server",
-                            PipeDirection.Out, PipeOptions.None,
-                            TokenImpersonationLevel.Anonymous);
-                pipeClient.Connect();
+                sender.Start();
                 StreamWriter sWriter = new StreamWriter(client.GetStream(), Encoding.ASCII);
                 StreamReader sReader = new StreamReader(client.GetStream(), Encoding.ASCII);
                 var action = "";
                 var expectContinue = false;
                 var readingReq = false;
-                var keepAlive = false;
                 var length = 0;
                 var nr = new NetworkReader(client);
                 while (client.Connected)
@@ -723,7 +723,7 @@ namespace SteelSeriesServer
                             }
                             else
                             {
-                                pipeMsg["provider"]["name"] = game.ToLower()+".exe";
+                                sender.SetGameName(game);
                                 if (hasValue)
                                     games[game].events[evtName].Execute(val);
                                 else
@@ -777,10 +777,10 @@ namespace SteelSeriesServer
                     else if (sData == "Expect: 100-continue")
                     {
                         expectContinue = true;
-                    } else if (sData == "Connection: keep-alive")
+                    } /*else if (sData == "Connection: keep-alive")
                     {
                         keepAlive = true;
-                    }
+                    }*/
                     else if (sData == "")
                     {
                         if (expectContinue)
@@ -798,7 +798,7 @@ namespace SteelSeriesServer
                         }
                     }
                 }
-                pipeClient.Close();
+                sender.Stop();
             }
         }
     }
