@@ -50,6 +50,7 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="ArtemisSender.cs" />
     <Compile Include="AuroraSender.cs" />
     <Compile Include="OpenRGBSender.cs" />
     <Compile Include="Program.cs" />

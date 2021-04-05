@@ -1,4 +1,4 @@
-This project implements a HTTP server that allows [GameSense SDK](https://github.com/SteelSeries/gamesense-sdk/) enabled games to connect to and forward keyboard lighting events to [Aurora](https://github.com/antonpup/Aurora/) and [OpenRGB](https://gitlab.com/CalcProgrammer1/OpenRGB).
+This project implements a HTTP server that allows [GameSense SDK](https://github.com/SteelSeries/gamesense-sdk/) enabled games to connect to and forward keyboard lighting events to [Aurora](https://github.com/antonpup/Aurora/), [OpenRGB](https://gitlab.com/CalcProgrammer1/OpenRGB) and [Artemis](https://github.com/Artemis-RGB/Artemis).
 
 **Usage:**
 - Make sure SteelSeries Game Engine is not running. It may interfere with this server.
@@ -11,6 +11,9 @@ This project implements a HTTP server that allows [GameSense SDK](https://github
 
 ***For OpenRGB***
 - Start the SDK server before starting SteelSeriesServer.
+
+***For Artemis***
+- You need to manually add the Remote Control module (unless it is already part of Artemis since this writing). Find "RemoteControlModule.zip" on the Artemis discord (in the support channel) and extract it into %PROGRAMDATA%\Artemis\plugins\Artemis.Plugins.Modules.RemoteControlModule .
 
 Tested with the following games:
 - [Cardaclysm](https://store.steampowered.com/app/1252710/Cardaclysm/)

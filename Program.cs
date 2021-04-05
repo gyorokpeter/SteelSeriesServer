@@ -539,7 +539,12 @@ namespace SteelSeriesServer
                     } else if (args[i] == "openrgb")
                     {
                         senderType = 2;
-                    } else
+                    }
+                    else if (args[i] == "artemis")
+                    {
+                        senderType = 3;
+                    }
+                    else
                     {
                         Console.Error.WriteLine("unknown value for -sender parameter: " + args[i]);
                         return 1;
@@ -548,19 +553,25 @@ namespace SteelSeriesServer
             }
             if (senderType == -1)
             {
-                Console.Write("Choose sender type (1=Aurora, 2=OpenRGB): ");
+                Console.Write("Choose sender type (1=Aurora, 2=OpenRGB, 3=Artemis): ");
                 senderType = int.Parse(Console.ReadLine());
-                if (senderType < 0 || senderType > 2)
+                if (senderType < 0 || senderType > 3)
                 {
                     Console.Error.WriteLine("invalid sender type");
                     return 1;
                 }
             }
-            if (senderType == 1)
+            switch(senderType)
             {
-                sender = new AuroraSender();
-            } else {
-                sender = new OpenRGBSender();
+                case 1:
+                    sender = new AuroraSender();
+                    break;
+                case 2:
+                    sender = new OpenRGBSender();
+                    break;
+                case 3:
+                    sender = new ArtemisSender();
+                    break;
             }
 
             games = new Dictionary<String, Game>();

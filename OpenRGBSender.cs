@@ -35,7 +35,7 @@ return;*/
         private OpenRGBClient openRgbClient;
         private int keyboardDeviceIndex;
         private Color[] colors;
-        public static readonly Dictionary<int, int> bitmap2OpenRgbKey = new Dictionary<int, int> {
+        private static readonly Dictionary<int, int> bitmap2OpenRgbKey = new Dictionary<int, int> {
                 { keyboardWidth*-1+4,  107 },    //Corsair K70 MK2 "brightness"
                 { keyboardWidth*-1+5,    8 },    //Corsair K70 MK2 "lock"
                 { keyboardWidth*-1+17,  16 },    //Corsair K70 MK2 "mute"
