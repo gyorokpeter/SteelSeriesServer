@@ -34,7 +34,7 @@ return;*/
     {
         private OpenRGBClient openRgbClient;
         private int keyboardDeviceIndex;
-        private Color[] colors;
+        private OpenRGB.NET.Models.Color[] colors;
         private static readonly Dictionary<int, int> bitmap2OpenRgbKey = new Dictionary<int, int> {
                 { keyboardWidth*-1+4,  107 },    //Corsair K70 MK2 "brightness"
                 { keyboardWidth*-1+5,    8 },    //Corsair K70 MK2 "lock"
