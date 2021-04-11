@@ -1,6 +1,6 @@
 ﻿namespace SteelSeriesServer
 {
-    internal abstract class Sender
+    public abstract class Sender
     {
         public const int keyboardWidth = 21;   //must be at least 21
 

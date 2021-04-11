@@ -5,7 +5,7 @@ using Newtonsoft.Json.Linq;
 
 namespace SteelSeriesServer
 {
-    internal class AuroraSender : Sender
+    public class AuroraSender : Sender
     {
         private NamedPipeClientStream pipeClient;
         private readonly JObject pipeMsg;

@@ -8,7 +8,6 @@ using System.Net.Sockets;
 using System.Security.Principal;
 using System.Text;
 using System.Threading;
-using EmbedIO;
 using Newtonsoft.Json.Linq;
 using OpenRGB.NET;
 

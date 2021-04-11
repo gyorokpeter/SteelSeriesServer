@@ -5,6 +5,7 @@ using System.Linq;
 using System.Net;
 using System.Net.Sockets;
 using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
 using Newtonsoft.Json.Linq;
 
@@ -537,11 +538,13 @@ namespace SteelSeriesServer
     }
 
 
-    class SteelSeriesServer : IEventMaskProvider
+    public class SteelSeriesServer : IEventMaskProvider
     {
         private readonly Sender sender;
         private readonly TcpListener listener;
         private readonly Dictionary<string, Game> games;
+        private Thread thread = null;
+        private bool running;
 
         public int[] GetEventMask(string game, string[] maskEvents)
         {
@@ -563,10 +566,22 @@ namespace SteelSeriesServer
 
         public void Run()
         {
-            while (true)
+            running = true;
+            while (running)
             {
                 Console.WriteLine("Waiting for client\n");
-                TcpClient client = listener.AcceptTcpClient();
+                TcpClient client = null;
+                while (running && client == null)
+                {
+                    if (listener.Pending())
+                    {
+                        client = listener.AcceptTcpClient();
+                    } else
+                    {
+                        Thread.Sleep(100);
+                    }
+                }
+                if (!running) break;
                 Console.WriteLine("Client connected\n");
                 sender.Start();
                 StreamWriter sWriter = new StreamWriter(client.GetStream(), Encoding.ASCII);
@@ -576,7 +591,7 @@ namespace SteelSeriesServer
                 var readingReq = false;
                 var length = 0;
                 var nr = new NetworkReader(client);
-                while (client.Connected)
+                while (running && client.Connected)
                 {
                     String sData;
                     if (readingReq)
@@ -796,6 +811,24 @@ namespace SteelSeriesServer
                 }
                 sender.Stop();
             }
+            listener.Stop();
+        }
+
+        public void Start()
+        {
+            if (thread == null)
+            {
+                thread = new Thread(new ThreadStart(Run));
+                thread.Start();
+            }
+        }
+
+        public void Stop()
+        {
+            if (thread == null) return;
+            running = false;
+            thread.Join();
+            thread = null;
         }
     }
 }
