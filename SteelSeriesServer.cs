@@ -564,252 +564,254 @@ namespace SteelSeriesServer
             games = new Dictionary<String, Game>();
         }
 
+        public void HandleClient(Object obj)
+        {
+            TcpClient client = (TcpClient)obj;
+            Console.WriteLine("Client connected\n");
+            sender.Start();
+            StreamWriter sWriter = new StreamWriter(client.GetStream(), Encoding.ASCII);
+            StreamReader sReader = new StreamReader(client.GetStream(), Encoding.ASCII);
+            var action = "";
+            var expectContinue = false;
+            var readingReq = false;
+            var length = 0;
+            var nr = new NetworkReader(client);
+            while (running && client.Connected)
+            {
+                String sData;
+                if (readingReq)
+                {
+                    sData = nr.Read(length);
+                }
+                else
+                {
+                    sData = nr.ReadLine();
+                }
+                if (sData == null) break;
+                if (readingReq)
+                {
+                    JObject response = null;
+                    readingReq = false;
+                    if (action == "/game_metadata")
+                    {
+                        JObject req = JObject.Parse(sData);
+                        GameMetadata meta = new GameMetadata
+                        {
+                            game = (string)req["game"],
+                            game_display_name = (string)req["game_display_name"],
+                            developer = req.ContainsKey("developer") ? (string)req["developer"] : "",
+                            icon_color_id = req.ContainsKey("icon_color_id") ? (int)req["icon_color_id"] : 0,
+                            deinitialize_timer_length_ms = req.ContainsKey("deinitialize_timer_length_ms") ? (int)req["deinitialize_timer_length_ms"] : 15000
+                        };
+                        nr.SetTimeout(meta.deinitialize_timer_length_ms);
+                        //Console.WriteLine(req);
+                        Console.WriteLine("Game metadata: " + meta.game);
+                        if (games.ContainsKey(meta.game))
+                        {
+                            games[meta.game].meta = meta;
+                        }
+                        else
+                        {
+                            games[meta.game] = new Game(meta);
+                        }
+
+                        response = new JObject
+                        {
+                            ["game_metadata"] = JObject.FromObject(meta)
+                        };
+                    }
+                    else if (action == "/bind_game_event")
+                    {
+                        JObject req = JObject.Parse(sData);
+                        JObject evtResp = new JObject();
+                        Event ev = new Event
+                        {
+                            game = (string)req["game"],
+                            evtName = (string)req["event"],
+                            handlers = new List<GameEventHandler>(),
+                        };
+                        if (req.ContainsKey("icon_id"))
+                        {
+                            ev.icon_id = (int)req["icon_id"];
+                        }
+                        if (req.ContainsKey("min_value"))
+                        {
+                            ev.min_value = (int)req["min_value"];
+                        }
+                        else
+                        {
+                            ev.min_value = 0;
+                        }
+                        if (req.ContainsKey("max_value"))
+                        {
+                            ev.max_value = (int)req["max_value"];
+                        }
+                        else
+                        {
+                            ev.max_value = 100;
+                        }
+                        foreach (var h in req["handlers"])
+                        {
+                            var handler = new GameEventHandler
+                            {
+                                game = ev.game,
+                                deviceType = GameEventHandler.deviceTypes[(string)h["device-type"]],
+                                mode = GameEventHandler.modes[(string)h["mode"]],
+                            };
+                            if (h["color"] != null)
+                            {
+                                handler.color = Color.FromJObject((JObject)h["color"]);
+                            }
+                            if (h["custom-zone-keys"] != null)
+                            {
+                                handler.SetCustomZoneKeys(h["custom-zone-keys"].ToObject<List<int>>());
+                            }
+                            if (h["zone"] != null)
+                            {
+                                handler.zone = GameEventHandler.zones[(string)h["zone"]];
+                            }
+                            if (h["rate"] != null)
+                            {
+                                handler.rate = Rate.FromJObject((JObject)h["rate"]);
+                            }
+                            if (h["context-frame-key"] != null)
+                            {
+                                handler.contextFrameKey = (string)h["context-frame-key"];
+                            }
+                            ev.handlers.Add(handler);
+                        }
+                        if (games.ContainsKey(ev.game))
+                        {
+                            games[ev.game].events[ev.evtName] = ev;
+                            evtResp["game"] = ev.game;
+                            evtResp["event"] = ev.evtName;
+                            evtResp["icon_id"] = ev.icon_id;
+                            evtResp["min_value"] = ev.min_value;
+                            evtResp["max_value"] = ev.max_value;
+                            evtResp["handlers"] = JArray.FromObject(ev.handlers.Select(x => x.ToJObject()));
+                            if (ev.data_fields != null)
+                            {
+                                evtResp["data_fields"] = JObject.FromObject(ev.data_fields);
+                            }
+                            response = new JObject { ["game_event_binding"] = evtResp };
+                        }
+                        else
+                        {
+                            response = new JObject { ["error"] = "unregistered game: " + ev.game };
+                        }
+                    }
+                    else if (action == "/game_event")
+                    {
+                        JObject req = JObject.Parse(sData);
+                        JObject evtResp = new JObject();
+                        String game = (string)req["game"];
+                        String evtName = (string)req["event"];
+                        int val = 0;
+                        bool hasValue = req["data"]["value"] != null;
+                        JObject frame = (JObject)req["data"]["frame"];
+                        if (hasValue) val = (int)req["data"]["value"];
+                        if (!games.ContainsKey(game))
+                        {
+                            response = new JObject { ["error"] = "unregistered game: " + game };
+                        }
+                        else
+                        {
+                            sender.SetGameName(game);
+                            if (hasValue)
+                                games[game].events[evtName].Execute(val, sender);
+                            else
+                                games[game].events[evtName].ExecuteWithFrame(frame, this, sender);
+
+                            evtResp["game"] = game;
+                            evtResp["event"] = evtName;
+                            if (hasValue)
+                            {
+                                evtResp["data"] = new JObject { ["value"] = val };
+                                evtResp["Data"] = evtResp["data"].ToString(Newtonsoft.Json.Formatting.None);
+                            }
+                            response = new JObject { ["game_event"] = evtResp };
+                        }
+                    }
+                    else if (action == "/game_heartbeat")
+                    {
+                        JObject req = JObject.Parse(sData);
+                        String game = (string)req["game"];
+                        response = new JObject { ["game_heartbeat"] = new JObject { ["game"] = game } };
+                    }
+                    else
+                    {
+                        Console.WriteLine("Unknown action: " + action);
+                        Console.WriteLine(sData);
+                    }
+                    if (response != null)
+                    {
+                        var responseStr = response.ToString(Newtonsoft.Json.Formatting.None);
+                        Console.WriteLine(responseStr);
+                        //Console.WriteLine("Sending response");
+                        sWriter.WriteLine("HTTP/1.1 200 OK");
+                        sWriter.WriteLine("Access-Control-Allow-Origin: *");
+                        sWriter.WriteLine("Content-Length: " + responseStr.Length);
+                        sWriter.WriteLine("Content-Type: text/html; charset=utf-8");
+                        sWriter.WriteLine("Server: web.go");
+                        sWriter.WriteLine("");
+                        sWriter.Write(responseStr);
+                        sWriter.Flush();
+                        //if (!keepAlive) client.Close();
+                    }
+                }
+                else if (sData.Contains("POST "))
+                {
+                    var parts = sData.Split(' ');
+                    action = parts[1];
+                    //Console.WriteLine("Action: " + action);
+                }
+                else if (sData.Contains("Content-Length:"))
+                {
+                    length = Int32.Parse(sData.Split(' ')[1]);
+                }
+                else if (sData == "Expect: 100-continue")
+                {
+                    expectContinue = true;
+                } /*else if (sData == "Connection: keep-alive")
+                    {
+                        keepAlive = true;
+                    }*/
+                else if (sData == "")
+                {
+                    if (expectContinue)
+                    {
+                        //Console.WriteLine("Sending Continue");
+                        sWriter.WriteLine("HTTP/1.1 100 Continue");
+                        sWriter.WriteLine("");
+                        sWriter.Flush();
+                        expectContinue = false;
+                        readingReq = true;
+                    }
+                    else
+                    {
+                        //Console.WriteLine("Need to read request body");
+                        readingReq = true;
+                    }
+                }
+            }
+            sender.Stop();
+        }
+
         public void Run()
         {
             running = true;
             while (running)
             {
-                Console.WriteLine("Waiting for client\n");
-                TcpClient client = null;
-                while (running && client == null)
+                if (listener.Pending())
                 {
-                    if (listener.Pending())
-                    {
-                        client = listener.AcceptTcpClient();
-                    } else
-                    {
-                        Thread.Sleep(100);
-                    }
+                    TcpClient client = listener.AcceptTcpClient();
+                    Thread th = new Thread(HandleClient);
+                    th.Start(client);
                 }
-                if (!running) break;
-                Console.WriteLine("Client connected\n");
-                sender.Start();
-                StreamWriter sWriter = new StreamWriter(client.GetStream(), Encoding.ASCII);
-                StreamReader sReader = new StreamReader(client.GetStream(), Encoding.ASCII);
-                var action = "";
-                var expectContinue = false;
-                var readingReq = false;
-                var length = 0;
-                var nr = new NetworkReader(client);
-                while (running && client.Connected)
+                else
                 {
-                    String sData;
-                    if (readingReq)
-                    {
-                        sData = nr.Read(length);
-                    }
-                    else
-                    {
-                        sData = nr.ReadLine();
-                    }
-                    if (sData == null) break;
-                    if (readingReq)
-                    {
-                        JObject response = null;
-                        readingReq = false;
-                        if (action == "/game_metadata")
-                        {
-                            JObject req = JObject.Parse(sData);
-                            GameMetadata meta = new GameMetadata
-                            {
-                                game = (string)req["game"],
-                                game_display_name = (string)req["game_display_name"],
-                                developer = req.ContainsKey("developer") ? (string)req["developer"] : "",
-                                icon_color_id = req.ContainsKey("icon_color_id") ? (int)req["icon_color_id"] : 0,
-                                deinitialize_timer_length_ms = req.ContainsKey("deinitialize_timer_length_ms") ? (int)req["deinitialize_timer_length_ms"] : 15000
-                            };
-                            nr.SetTimeout(meta.deinitialize_timer_length_ms);
-                            //Console.WriteLine(req);
-                            Console.WriteLine("Game metadata: " + meta.game);
-                            if (games.ContainsKey(meta.game))
-                            {
-                                games[meta.game].meta = meta;
-                            }
-                            else
-                            {
-                                games[meta.game] = new Game(meta);
-                            }
-
-                            response = new JObject
-                            {
-                                ["game_metadata"] = JObject.FromObject(meta)
-                            };
-                        }
-                        else if (action == "/bind_game_event")
-                        {
-                            JObject req = JObject.Parse(sData);
-                            JObject evtResp = new JObject();
-                            Event ev = new Event
-                            {
-                                game = (string)req["game"],
-                                evtName = (string)req["event"],
-                                handlers = new List<GameEventHandler>(),
-                            };
-                            if (req.ContainsKey("icon_id"))
-                            {
-                                ev.icon_id = (int)req["icon_id"];
-                            }
-                            if (req.ContainsKey("min_value"))
-                            {
-                                ev.min_value = (int)req["min_value"];
-                            }
-                            else
-                            {
-                                ev.min_value = 0;
-                            }
-                            if (req.ContainsKey("max_value"))
-                            {
-                                ev.max_value = (int)req["max_value"];
-                            }
-                            else
-                            {
-                                ev.max_value = 100;
-                            }
-                            foreach (var h in req["handlers"])
-                            {
-                                var handler = new GameEventHandler
-                                {
-                                    game = ev.game,
-                                    deviceType = GameEventHandler.deviceTypes[(string)h["device-type"]],
-                                    mode = GameEventHandler.modes[(string)h["mode"]],
-                                };
-                                if (h["color"] != null)
-                                {
-                                    handler.color = Color.FromJObject((JObject)h["color"]);
-                                }
-                                if (h["custom-zone-keys"] != null)
-                                {
-                                    handler.SetCustomZoneKeys(h["custom-zone-keys"].ToObject<List<int>>());
-                                }
-                                if (h["zone"] != null)
-                                {
-                                    handler.zone = GameEventHandler.zones[(string)h["zone"]];
-                                }
-                                if (h["rate"] != null)
-                                {
-                                    handler.rate = Rate.FromJObject((JObject)h["rate"]);
-                                }
-                                if (h["context-frame-key"] != null)
-                                {
-                                    handler.contextFrameKey = (string)h["context-frame-key"];
-                                }
-                                ev.handlers.Add(handler);
-                            }
-                            if (games.ContainsKey(ev.game))
-                            {
-                                games[ev.game].events[ev.evtName] = ev;
-                                evtResp["game"] = ev.game;
-                                evtResp["event"] = ev.evtName;
-                                evtResp["icon_id"] = ev.icon_id;
-                                evtResp["min_value"] = ev.min_value;
-                                evtResp["max_value"] = ev.max_value;
-                                evtResp["handlers"] = JArray.FromObject(ev.handlers.Select(x => x.ToJObject()));
-                                if (ev.data_fields != null)
-                                {
-                                    evtResp["data_fields"] = JObject.FromObject(ev.data_fields);
-                                }
-                                response = new JObject { ["game_event_binding"] = evtResp };
-                            }
-                            else
-                            {
-                                response = new JObject { ["error"] = "unregistered game: " + ev.game };
-                            }
-                        }
-                        else if (action == "/game_event")
-                        {
-                            JObject req = JObject.Parse(sData);
-                            JObject evtResp = new JObject();
-                            String game = (string)req["game"];
-                            String evtName = (string)req["event"];
-                            int val = 0;
-                            bool hasValue = req["data"]["value"] != null;
-                            JObject frame = (JObject)req["data"]["frame"];
-                            if (hasValue) val = (int)req["data"]["value"];
-                            if (!games.ContainsKey(game))
-                            {
-                                response = new JObject { ["error"] = "unregistered game: " + game };
-                            }
-                            else
-                            {
-                                sender.SetGameName(game);
-                                if (hasValue)
-                                    games[game].events[evtName].Execute(val, sender);
-                                else
-                                    games[game].events[evtName].ExecuteWithFrame(frame, this, sender);
-
-                                evtResp["game"] = game;
-                                evtResp["event"] = evtName;
-                                if (hasValue)
-                                {
-                                    evtResp["data"] = new JObject { ["value"] = val };
-                                    evtResp["Data"] = evtResp["data"].ToString(Newtonsoft.Json.Formatting.None);
-                                }
-                                response = new JObject { ["game_event"] = evtResp };
-                            }
-                        }
-                        else if (action == "/game_heartbeat")
-                        {
-                            JObject req = JObject.Parse(sData);
-                            String game = (string)req["game"];
-                            response = new JObject { ["game_heartbeat"] = new JObject { ["game"] = game } };
-                        }
-                        else
-                        {
-                            Console.WriteLine("Unknown action: " + action);
-                            Console.WriteLine(sData);
-                        }
-                        if (response != null)
-                        {
-                            var responseStr = response.ToString(Newtonsoft.Json.Formatting.None);
-                            Console.WriteLine(responseStr);
-                            //Console.WriteLine("Sending response");
-                            sWriter.WriteLine("HTTP/1.1 200 OK");
-                            sWriter.WriteLine("Access-Control-Allow-Origin: *");
-                            sWriter.WriteLine("Content-Length: " + responseStr.Length);
-                            sWriter.WriteLine("Content-Type: text/html; charset=utf-8");
-                            sWriter.WriteLine("Server: web.go");
-                            sWriter.WriteLine("");
-                            sWriter.Write(responseStr);
-                            sWriter.Flush();
-                            //if (!keepAlive) client.Close();
-                        }
-                    }
-                    else if (sData.Contains("POST "))
-                    {
-                        var parts = sData.Split(' ');
-                        action = parts[1];
-                        //Console.WriteLine("Action: " + action);
-                    }
-                    else if (sData.Contains("Content-Length:"))
-                    {
-                        length = Int32.Parse(sData.Split(' ')[1]);
-                    }
-                    else if (sData == "Expect: 100-continue")
-                    {
-                        expectContinue = true;
-                    } /*else if (sData == "Connection: keep-alive")
-                    {
-                        keepAlive = true;
-                    }*/
-                    else if (sData == "")
-                    {
-                        if (expectContinue)
-                        {
-                            //Console.WriteLine("Sending Continue");
-                            sWriter.WriteLine("HTTP/1.1 100 Continue");
-                            sWriter.WriteLine("");
-                            sWriter.Flush();
-                            expectContinue = false;
-                            readingReq = true;
-                        }
-                        else
-                        {
-                            //Console.WriteLine("Need to read request body");
-                            readingReq = true;
-                        }
-                    }
+                    Thread.Sleep(100);
                 }
-                sender.Stop();
             }
             listener.Stop();
         }

@@ -9,6 +9,7 @@ namespace SteelSeriesServer
     {
         private NamedPipeClientStream pipeClient;
         private readonly JObject pipeMsg;
+        private int refcount = 0;
 
         public AuroraSender()
         {
@@ -59,16 +60,22 @@ namespace SteelSeriesServer
 
         override public void Start()
         {
-            pipeClient =
-                    new NamedPipeClientStream(".", "Aurora\\server",
-                        PipeDirection.Out, PipeOptions.None,
-                        TokenImpersonationLevel.Anonymous);
-            pipeClient.Connect(1000);
+            if (refcount == 0)
+            {
+                pipeClient =
+                        new NamedPipeClientStream(".", "Aurora\\server",
+                            PipeDirection.Out, PipeOptions.None,
+                            TokenImpersonationLevel.Anonymous);
+                pipeClient.Connect(1000);
+            }
+            refcount++;
         }
 
         override public void Stop()
         {
-            pipeClient.Close();
+            refcount--;
+            if (refcount == 0)
+                pipeClient.Close();
         }
 
         override public void SetGameName(string game)
