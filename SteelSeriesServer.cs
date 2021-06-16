@@ -85,7 +85,7 @@ namespace SteelSeriesServer
         public Mode mode;
         public enum DeviceType { RgbPerKeyZones, RgbZonedDevice };
         public DeviceType deviceType;
-        public enum Zone { None, All, NumberKeys, FunctionKeys, One, Two, Three, Four, Five, Six, Seven, Eight };
+        public enum Zone { None, All, NumberKeys, FunctionKeys, One, Two, Three, Four, Five, Six, Seven, Eight, Nine, Ten, Eleven, Twelve };
         public Zone zone;
         public List<int> customZoneKeys;
         private int[] customZoneKeyLocs;
@@ -119,6 +119,10 @@ namespace SteelSeriesServer
                 { "six",Zone.Six },
                 { "seven",Zone.Seven },
                 { "eight",Zone.Eight },
+                { "nine",Zone.Nine },
+                { "ten",Zone.Ten },
+                { "eleven",Zone.Eleven },
+                { "twelve",Zone.Twelve },
             };
         const int keyboardWidth = Sender.keyboardWidth;
         public static readonly Dictionary<Zone, String> zonesR = zones.ToDictionary(x => x.Value, x => x.Key);
@@ -656,7 +660,7 @@ namespace SteelSeriesServer
                             {
                                 game = ev.game,
                                 deviceType = GameEventHandler.deviceTypes[(string)h["device-type"]],
-                                mode = GameEventHandler.modes[(string)h["mode"]],
+                                mode = GameEventHandler.modes[(string)h["mode"]]
                             };
                             if (h["color"] != null)
                             {
