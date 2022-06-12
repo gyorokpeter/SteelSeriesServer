@@ -83,7 +83,7 @@ namespace SteelSeriesServer
         public String game;
         public enum Mode { Color, ContextColor, Count, Percent, Bitmap, PartialBitmap };
         public Mode mode;
-        public enum DeviceType { RgbPerKeyZones, RgbZonedDevice };
+        public enum DeviceType { RgbPerKeyZones, RgbZonedDevice, Keyboard, Mouse };
         public DeviceType deviceType;
         public enum Zone { None, All, NumberKeys, FunctionKeys, One, Two, Three, Four, Five, Six, Seven, Eight, Nine, Ten, Eleven, Twelve };
         public Zone zone;
@@ -95,6 +95,8 @@ namespace SteelSeriesServer
         public static readonly Dictionary<String, DeviceType> deviceTypes = new Dictionary<string, DeviceType> {
                 { "rgb-per-key-zones", DeviceType.RgbPerKeyZones },
                 { "rgb-zoned-device", DeviceType.RgbZonedDevice },
+                { "keyboard", DeviceType.Keyboard },
+                { "mouse", DeviceType.Mouse },
             };
         public static readonly Dictionary<DeviceType, String> deviceTypesR = deviceTypes.ToDictionary(x => x.Value, x => x.Key);
         public static readonly Dictionary<String, Mode> modes = new Dictionary<string, Mode> {
@@ -656,11 +658,21 @@ namespace SteelSeriesServer
                         }
                         foreach (var h in req["handlers"])
                         {
+                            string deviceType = (string)h["device-type"];
+                            string mode = (string)h["mode"];
+                            if (!GameEventHandler.deviceTypes.ContainsKey(deviceType))
+                            {
+                                throw new Exception("unknown device-type: " + deviceType);
+                            }
+                            if (!GameEventHandler.modes.ContainsKey(mode))
+                            {
+                                throw new Exception("unknown mode: " + mode);
+                            }
                             var handler = new GameEventHandler
                             {
                                 game = ev.game,
-                                deviceType = GameEventHandler.deviceTypes[(string)h["device-type"]],
-                                mode = GameEventHandler.modes[(string)h["mode"]]
+                                deviceType = GameEventHandler.deviceTypes[deviceType],
+                                mode = GameEventHandler.modes[mode]
                             };
                             if (h["color"] != null)
                             {
